@@ -297,26 +297,7 @@
             });
         }
 
-        // Переключение темы
-        function setupThemeToggle() {
-            const darkModeSwitch = document.getElementById('darkModeSwitch');
-            const prefersDarkScheme = window.matchMedia('(prefers-color-scheme: dark)');
-            
-            // Проверяем предпочтения пользователя
-            if (prefersDarkScheme.matches) {
-                document.body.setAttribute('data-bs-theme', 'dark');
-                darkModeSwitch.checked = true;
-            }
-            
-            // Обработчик переключения темы
-            darkModeSwitch.addEventListener('change', function() {
-                if (this.checked) {
-                    document.body.setAttribute('data-bs-theme', 'dark');
-                } else {
-                    document.body.removeAttribute('data-bs-theme');
-                }
-            });
-        }
+       
 
         // Инициализация при загрузке страницы
         document.addEventListener('DOMContentLoaded', function() {
