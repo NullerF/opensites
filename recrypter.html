@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Шифратор текста</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <style>
+        .language-switcher {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+        }
+        .telegram-icon {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            font-size: 2rem;
+            color: #0088cc;
+            z-index: 1000;
+        }
+        .symbol-table {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .preset-btn {
+            margin: 2px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-5">
+        <div class="language-switcher">
+            <div class="btn-group">
+                <button class="btn btn-outline-primary active" data-lang="ru">RU</button>
+                <button class="btn btn-outline-secondary" data-lang="en">EN</button>
+            </div>
+        </div>
+
+        <h1 class="text-center mb-4" data-i18n="title">Шифратор текста</h1>
+        
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card mb-4">
+                    <div class="card-header" data-i18n="inputText">Исходный текст</div>
+                    <div class="card-body">
+                        <textarea id="inputText" class="form-control" rows="6" placeholder="Введите текст для шифрования..."></textarea>
+                    </div>
+                </div>
+                
+                <div class="card mb-4">
+                    <div class="card-header" data-i18n="resultText">Зашифрованный текст</div>
+                    <div class="card-body">
+                        <textarea id="outputText" class="form-control" rows="6" readonly></textarea>
+                    </div>
+                </div>
+                
+                <div class="d-grid gap-2">
+                    <button id="analyzeBtn" class="btn btn-primary" data-i18n="analyze">Анализировать текст</button>
+                    <button id="encryptBtn" class="btn btn-success" disabled data-i18n="encrypt">Зашифровать</button>
+                    <button id="saveTableBtn" class="btn btn-info" disabled data-i18n="saveTable">Сохранить таблицу</button>
+                </div>
+            </div>
+            
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <span data-i18n="symbolTable">Таблица замены символов</span>
+                        <div class="btn-group">
+                            <button type="button" class="btn btn-sm btn-outline-primary dropdown-toggle" data-bs-toggle="dropdown" data-i18n="presets">
+                                Готовые таблицы
+                            </button>
+                            <ul class="dropdown-menu">
+                                <li><a class="dropdown-item preset-btn" data-preset="alchemy">Алхимический шифр</a></li>
+                                <li><a class="dropdown-item preset-btn" data-preset="clear">Очистить таблицу</a></li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="symbol-table">
+                            <table class="table table-striped table-sm">
+                                <thead>
+                                    <tr>
+                                        <th data-i18n="original">Исходный</th>
+                                        <th data-i18n="replace">Замена</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="symbolTableBody">
+                                    <!-- Таблица будет заполняться динамически -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <a href="https://t.me/NullerF" target="_blank" class="telegram-icon">
+        <i class="bi bi-telegram"></i>
+    </a>
+
+    <script>
+        // Переводы
+        const translations = {
+            ru: {
+                title: "Шифратор текста",
+                inputText: "Исходный текст",
+                resultText: "Зашифрованный текст",
+                analyze: "Анализировать текст",
+                encrypt: "Зашифровать",
+                saveTable: "Сохранить таблицу",
+                symbolTable: "Таблица замены символов",
+                presets: "Готовые таблицы",
+                original: "Исходный",
+                replace: "Замена",
+                placeholder: "Введите текст для шифрования..."
+            },
+            en: {
+                title: "Text Encryptor",
+                inputText: "Input Text",
+                resultText: "Encrypted Text",
+                analyze: "Analyze Text",
+                encrypt: "Encrypt",
+                saveTable: "Save Table",
+                symbolTable: "Symbol Replacement Table",
+                presets: "Preset Tables",
+                original: "Original",
+                replace: "Replace",
+                placeholder: "Enter text for encryption..."
+            }
+        };
+
+        // Готовые таблицы замены
+        const presetTables = {
+            alchemy: {
+                'a': '!',
+                'b': '@',
+                'c': '#',
+                'd': '$',
+                'e': '%',
+                'f': '^',
+                'g': '&',
+                'h': '*',
+                'i': '(',
+                'j': ')',
+                'k': '/',
+                'l': '?',
+                'm': '.',
+                'n': ',',
+                'o': '8',
+                'p': ';',
+                'q': ':',
+                'r': ']',
+                's': '{',
+                't': '[',
+                'u': '}',
+                'v': '=',
+                'w': '+',
+                'x': '`',
+                'y': '-',
+                'z': '~'
+            }
+        };
+
+        let currentLang = 'ru';
+        let substitutionTable = {};
+
+        // Функция для смены языка
+        function changeLanguage(lang) {
+            currentLang = lang;
+            document.querySelectorAll('[data-i18n]').forEach(element => {
+                const key = element.getAttribute('data-i18n');
+                if (translations[lang][key]) {
+                    if (element.tagName === 'INPUT' || element.tagName === 'TEXTAREA') {
+                        element.placeholder = translations[lang][key];
+                    } else {
+                        element.textContent = translations[lang][key];
+                    }
+                }
+            });
+            
+            // Обновляем кнопки языка
+            document.querySelectorAll('.language-switcher .btn').forEach(btn => {
+                if (btn.getAttribute('data-lang') === lang) {
+                    btn.classList.add('active');
+                    btn.classList.remove('btn-outline-secondary');
+                    btn.classList.add('btn-outline-primary');
+                } else {
+                    btn.classList.remove('active');
+                    btn.classList.remove('btn-outline-primary');
+                    btn.classList.add('btn-outline-secondary');
+                }
+            });
+        }
+
+        // Анализ текста и создание таблицы символов
+        function analyzeText() {
+            const text = document.getElementById('inputText').value;
+            if (!text) {
+                alert(currentLang === 'ru' ? 'Введите текст для анализа!' : 'Please enter text to analyze!');
+                return;
+            }
+
+            const uniqueChars = [...new Set(text)].filter(char => char !== ' ' && char !== '\n');
+            const tableBody = document.getElementById('symbolTableBody');
+            tableBody.innerHTML = '';
+
+            substitutionTable = {};
+
+            uniqueChars.forEach(char => {
+                const row = document.createElement('tr');
+                
+                const charCell = document.createElement('td');
+                charCell.textContent = char;
+                charCell.style.fontWeight = 'bold';
+                
+                const inputCell = document.createElement('td');
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.className = 'form-control form-control-sm';
+                input.maxLength = 1;
+                input.dataset.original = char;
+                input.addEventListener('input', function(e) {
+                    substitutionTable[this.dataset.original] = this.value;
+                    updateEncryptButton();
+                });
+                
+                inputCell.appendChild(input);
+                row.appendChild(charCell);
+                row.appendChild(inputCell);
+                tableBody.appendChild(row);
+            });
+
+            document.getElementById('encryptBtn').disabled = true;
+            document.getElementById('saveTableBtn').disabled = false;
+        }
+
+        // Обновление состояния кнопки шифрования
+        function updateEncryptButton() {
+            const allFilled = Object.values(substitutionTable).every(value => value !== '');
+            document.getElementById('encryptBtn').disabled = !allFilled;
+        }
+
+        // Шифрование текста
+        function encryptText() {
+            const text = document.getElementById('inputText').value;
+            let encrypted = '';
+            
+            for (const char of text) {
+                if (substitutionTable[char]) {
+                    encrypted += substitutionTable[char];
+                } else {
+                    encrypted += char;
+                }
+            }
+            
+            document.getElementById('outputText').value = encrypted;
+        }
+
+        // Сохранение таблицы замены
+        function saveSubstitutionTable() {
+            const tableName = prompt(
+                currentLang === 'ru' ? 'Введите название для таблицы:' : 'Enter name for table:',
+                'custom_table'
+            );
+            
+            if (tableName && tableName.trim() !== '') {
+                presetTables[tableName] = {...substitutionTable};
+                alert(
+                    currentLang === 'ru' 
+                    ? `Таблица "${tableName}" сохранена!` 
+                    : `Table "${tableName}" saved!`
+                );
+            }
+        }
+
+        // Загрузка готовой таблицы
+        function loadPresetTable(presetName) {
+            if (presetName === 'clear') {
+                substitutionTable = {};
+                document.getElementById('symbolTableBody').innerHTML = '';
+                document.getElementById('encryptBtn').disabled = true;
+                return;
+            }
+
+            if (!presetTables[presetName]) {
+                alert(currentLang === 'ru' ? 'Таблица не найдена!' : 'Table not found!');
+                return;
+            }
+
+            substitutionTable = {...presetTables[presetName]};
+            const tableBody = document.getElementById('symbolTableBody');
+            tableBody.innerHTML = '';
+
+            Object.entries(presetTables[presetName]).forEach(([original, replacement]) => {
+                const row = document.createElement('tr');
+                
+                const charCell = document.createElement('td');
+                charCell.textContent = original;
+                charCell.style.fontWeight = 'bold';
+                
+                const inputCell = document.createElement('td');
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.className = 'form-control form-control-sm';
+                input.value = replacement;
+                input.maxLength = 1;
+                input.dataset.original = original;
+                input.addEventListener('input', function(e) {
+                    substitutionTable[this.dataset.original] = this.value;
+                    updateEncryptButton();
+                });
+                
+                inputCell.appendChild(input);
+                row.appendChild(charCell);
+                row.appendChild(inputCell);
+                tableBody.appendChild(row);
+            });
+
+            updateEncryptButton();
+            document.getElementById('saveTableBtn').disabled = false;
+        }
+
+        // Инициализация событий
+        document.addEventListener('DOMContentLoaded', function() {
+            // Переключение языка
+            document.querySelectorAll('.language-switcher .btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    changeLanguage(this.getAttribute('data-lang'));
+                });
+            });
+
+            // Кнопка анализа
+            document.getElementById('analyzeBtn').addEventListener('click', analyzeText);
+
+            // Кнопка шифрования
+            document.getElementById('encryptBtn').addEventListener('click', encryptText);
+
+            // Кнопка сохранения таблицы
+            document.getElementById('saveTableBtn').addEventListener('click', saveSubstitutionTable);
+
+            // Готовые таблицы
+            document.querySelectorAll('.preset-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    loadPresetTable(this.getAttribute('data-preset'));
+                });
+            });
+
+            // Инициализация русского языка
+            changeLanguage('ru');
+        });
+    </script>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
