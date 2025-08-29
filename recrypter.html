@@ -25,6 +25,7 @@
             background-color: var(--bg-color);
             color: var(--text-color);
             transition: all 0.3s ease;
+            padding-bottom: 60px;
         }
         
         .card {
@@ -77,6 +78,23 @@
         .btn-group {
             margin-bottom: 10px;
         }
+        
+        .mode-indicator {
+            font-size: 0.9rem;
+            margin-left: 10px;
+            padding: 3px 8px;
+            border-radius: 4px;
+            background-color: #6c757d;
+            color: white;
+        }
+        
+        .mode-encrypt {
+            background-color: #198754;
+        }
+        
+        .mode-decrypt {
+            background-color: #fd7e14;
+        }
     </style>
 </head>
 <body>
@@ -112,7 +130,10 @@
                 
                 <div class="card mb-4">
                     <div class="card-header d-flex justify-content-between align-items-center">
-                        <span data-i18n="resultText">Результат</span>
+                        <div>
+                            <span data-i18n="resultText">Результат</span>
+                            <span id="modeIndicator" class="mode-indicator d-none"></span>
+                        </div>
                         <button id="clearOutput" class="btn btn-sm btn-outline-secondary">
                             <i class="bi bi-x-circle"></i> <span data-i18n="clear">Очистить</span>
                         </button>
@@ -147,6 +168,9 @@
                         </div>
                     </div>
                     <div class="card-body">
+                        <div class="alert alert-info" role="alert" data-i18n="decryptHelp">
+                            Для дешифрования убедитесь, что таблица замены соответствует той, что использовалась при шифровании.
+                        </div>
                         <div class="symbol-table">
                             <table class="table table-striped table-sm">
                                 <thead>
@@ -192,7 +216,8 @@
                 clear: "Очистить",
                 placeholder: "Введите текст для шифрования...",
                 encryptedText: "Зашифрованный текст",
-                decryptedText: "Дешифрованный текст"
+                decryptedText: "Дешифрованный текст",
+                decryptHelp: "Для дешифрования убедитесь, что таблица замены соответствует той, что использовалась при шифровании."
             },
             en: {
                 title: "Text Encryptor/Decryptor",
@@ -209,7 +234,8 @@
                 clear: "Clear",
                 placeholder: "Enter text for encryption...",
                 encryptedText: "Encrypted text",
-                decryptedText: "Decrypted text"
+                decryptedText: "Decrypted text",
+                decryptHelp: "For decryption, make sure the substitution table matches the one used for encryption."
             }
         };
 
@@ -241,40 +267,8 @@
                 'w': '+',
                 'x': '`',
                 'y': '-',
-                'z': '~',
-                'а': '!',
-                'б': '@',
-                'в': '#',
-                'г': '$',
-                'д': '%',
-                'е': '^',
-                'ё': '&',
-                'ж': '*',
-                'з': '(',
-                'и': ')',
-                'й': '/',
-                'к': '?',
-                'л': '.',
-                'м': ',',
-                'н': '8',
-                'о': ';',
-                'п': ':',
-                'р': ']',
-                'с': '{',
-                'т': '[',
-                'у': '}',
-                'ф': '=',
-                'х': '+',
-                'ц': '`',
-                'ч': '-',
-                'ш': '~',
-                'щ': '1',
-                'ъ': '2',
-                'ы': '3',
-                'ь': '4',
-                'э': '5',
-                'ю': '6',
-                'я': '7'
+                'z': '~'
+                
             }
         };
 
@@ -283,6 +277,7 @@
         let substitutionTable = {};
         let reverseTable = {};
         let isDarkTheme = false;
+        let lastOperation = null; // 'encrypt' or 'decrypt'
 
         // Function to change language
         function changeLanguage(lang) {
@@ -370,7 +365,9 @@
                 input.addEventListener('input', function(e) {
                     substitutionTable[this.dataset.original] = this.value;
                     // Update reverse mapping for decryption
-                    reverseTable[this.value] = this.dataset.original;
+                    if (this.value) {
+                        reverseTable[this.value] = this.dataset.original;
+                    }
                     updateButtonsState();
                 });
                 
@@ -405,8 +402,13 @@
             }
             
             document.getElementById('outputText').value = encrypted;
-            document.querySelector('.card-header span[data-i18n="resultText"]').setAttribute('data-i18n', 'encryptedText');
-            changeLanguage(currentLang); // Update translation
+            lastOperation = 'encrypt';
+            
+            // Update mode indicator
+            const indicator = document.getElementById('modeIndicator');
+            indicator.textContent = currentLang === 'ru' ? 'Зашифровано' : 'Encrypted';
+            indicator.className = 'mode-indicator mode-encrypt';
+            indicator.classList.remove('d-none');
         }
 
         // Function to decrypt text
@@ -423,8 +425,13 @@
             }
             
             document.getElementById('outputText').value = decrypted;
-            document.querySelector('.card-header span[data-i18n="resultText"]').setAttribute('data-i18n', 'decryptedText');
-            changeLanguage(currentLang); // Update translation
+            lastOperation = 'decrypt';
+            
+            // Update mode indicator
+            const indicator = document.getElementById('modeIndicator');
+            indicator.textContent = currentLang === 'ru' ? 'Дешифровано' : 'Decrypted';
+            indicator.className = 'mode-indicator mode-decrypt';
+            indicator.classList.remove('d-none');
         }
 
         // Function to save substitution table
@@ -486,7 +493,9 @@
                 input.addEventListener('input', function(e) {
                     substitutionTable[this.dataset.original] = this.value;
                     // Update reverse mapping for decryption
-                    reverseTable[this.value] = this.dataset.original;
+                    if (this.value) {
+                        reverseTable[this.value] = this.dataset.original;
+                    }
                     updateButtonsState();
                 });
                 
@@ -508,6 +517,7 @@
         // Function to clear output field
         function clearOutput() {
             document.getElementById('outputText').value = '';
+            document.getElementById('modeIndicator').classList.add('d-none');
         }
 
         // Initialize events
